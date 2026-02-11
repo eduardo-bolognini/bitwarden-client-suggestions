@@ -6,19 +6,39 @@
   </bit-section-header>
 
   <bit-card>
-    <bit-form-field>
-      <bit-label>{{ "username" | i18n }}</bit-label>
-      <input bitInput formControlName="username" />
-      <button
-        type="button"
-        bitIconButton="bwi-generate"
-        bitSuffix
-        *ngIf="loginDetailsForm.controls.username.enabled"
-        data-testid="generate-username-button"
-        [label]="'generateUsername' | i18n"
-        [bitAction]="generateUsername"
-      ></button>
-    </bit-form-field>
+    <div class="tw-relative">
+      <bit-form-field>
+        <bit-label>{{ "username" | i18n }}</bit-label>
+        <input
+          bitInput
+          formControlName="username"
+          type="search"
+          autocomplete="one-time-code"
+          [attr.name]="'username-' + usernameFieldId"
+          role="presentation"
+          [readonly]="isUsernameReadonly()"
+          (focus)="onUsernameFocus()"
+          (input)="onUsernameInput($event)"
+          (blur)="onUsernameBlur()"
+        />
+        <button
+          type="button"
+          bitIconButton="bwi-generate"
+          bitSuffix
+          *ngIf="loginDetailsForm.controls.username.enabled"
+          data-testid="generate-username-button"
+          [label]="'generateUsername' | i18n"
+          [bitAction]="generateUsername"
+        ></button>
+      </bit-form-field>
+
+      <vault-username-autocomplete
+        [suggestions]="filteredSuggestions()"
+        [visible]="showAutocompleteSuggestions()"
+        [headerText]="'recentUsernames' | i18n"
+        (selected)="onUsernameSelected($event)"
+      ></vault-username-autocomplete>
+    </div>
 
     <bit-form-field>
       <bit-label>{{ "password" | i18n }}</bit-label>

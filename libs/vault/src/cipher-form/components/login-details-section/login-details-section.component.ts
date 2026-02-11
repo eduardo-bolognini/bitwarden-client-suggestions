@@ -1,16 +1,18 @@
 // FIXME: Update this file to be type safe and remove this and next line
 // @ts-strict-ignore
 import { DatePipe, NgIf } from "@angular/common";
-import { Component, DestroyRef, inject, OnInit, Optional } from "@angular/core";
+import { Component, DestroyRef, inject, OnInit, Optional, signal } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormBuilder, ReactiveFormsModule } from "@angular/forms";
-import { map } from "rxjs";
+import { firstValueFrom, map } from "rxjs";
 
 import { JslibModule } from "@bitwarden/angular/jslib.module";
 import { AuditService } from "@bitwarden/common/abstractions/audit.service";
 import { EventCollectionService } from "@bitwarden/common/abstractions/event/event-collection.service";
+import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
 import { EventType } from "@bitwarden/common/enums";
 import { I18nService } from "@bitwarden/common/platform/abstractions/i18n.service";
+import { UserId } from "@bitwarden/common/types/guid";
 import { Fido2CredentialView } from "@bitwarden/common/vault/models/view/fido2-credential.view";
 import { LoginView } from "@bitwarden/common/vault/models/view/login.view";
 import {
@@ -25,10 +27,13 @@ import {
   TypographyModule,
 } from "@bitwarden/components";
 
+import { UsernameAutocompleteComponent } from "../../../components/autocomplete/username-autocomplete.component";
+import { RecentUsernamesService } from "../../../services/recent-usernames.service";
 import { CipherFormGenerationService } from "../../abstractions/cipher-form-generation.service";
 import { TotpCaptureService } from "../../abstractions/totp-capture.service";
 import { CipherFormContainer } from "../../cipher-form-container";
 import { AutofillOptionsComponent } from "../autofill-options/autofill-options.component";
+
 
 // FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
 // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
@@ -48,15 +53,24 @@ import { AutofillOptionsComponent } from "../autofill-options/autofill-options.c
     PopoverModule,
     AutofillOptionsComponent,
     LinkModule,
+    UsernameAutocompleteComponent,
   ],
 })
 export class LoginDetailsSectionComponent implements OnInit {
   EventType = EventType;
+
   loginDetailsForm = this.formBuilder.group({
     username: [""],
     password: [""],
     totp: [""],
   });
+
+  // State for username autocomplete functionality
+  readonly showAutocompleteSuggestions = signal(false);
+  readonly filteredSuggestions = signal<string[]>([]);
+  readonly isUsernameReadonly = signal(true); // added to block chrome autocomplete on username field, which would interfere with our custom autocomplete UI
+  usernameFieldId = Math.random().toString(36).substring(2); // random ID to prevent browser autocomplete
+  private currentUserId: UserId | null = null;
 
   /**
    * Flag indicating whether a new password has been generated for the current form.
@@ -117,7 +131,9 @@ export class LoginDetailsSectionComponent implements OnInit {
     private auditService: AuditService,
     private toastService: ToastService,
     private eventCollectionService: EventCollectionService,
+    private accountService: AccountService,
     @Optional() private totpCaptureService?: TotpCaptureService,
+    private recentUsernamesService?: RecentUsernamesService, // to load recent usernames for autocomplete
   ) {
     this.cipherFormContainer.registerChildForm("loginDetails", this.loginDetailsForm);
 
@@ -140,7 +156,15 @@ export class LoginDetailsSectionComponent implements OnInit {
       });
   }
 
-  ngOnInit() {
+  async ngOnInit() {
+    // Get current user ID for encrypted storage
+    try {
+      const activeAccount = await firstValueFrom(this.accountService.activeAccount$);
+      this.currentUserId = activeAccount?.id ?? null;
+    } catch {
+      // Silently fail - user ID will be null
+    }
+
     const prefillCipher = this.cipherFormContainer.getInitialCipherView();
 
     if (prefillCipher) {
@@ -292,5 +316,61 @@ export class LoginDetailsSectionComponent implements OnInit {
         message: this.i18nService.t("passwordSafe"),
       });
     }
+  };
+
+  /**
+   * Show autocomplete on focus
+   */
+  onUsernameFocus = async () => {
+    this.isUsernameReadonly.set(false);
+
+    if (!this.currentUserId || !this.recentUsernamesService) {
+      return;
+    }
+
+    const recent = await this.recentUsernamesService.getRecent(this.currentUserId, 4);
+    this.filteredSuggestions.set(recent);
+    this.showAutocompleteSuggestions.set(true);
+  };
+
+  /**
+   * Filter suggestions on input
+   */
+  onUsernameInput = async (event: Event) => {
+    if (!this.currentUserId || !this.recentUsernamesService) {
+      return;
+    }
+
+    const input = (event.target as HTMLInputElement).value.toLowerCase();
+    const all = await this.recentUsernamesService.getRecent(this.currentUserId, 20);
+
+    if (!input) {
+      // Se vuoto, mostra top 4
+      this.filteredSuggestions.set(all.slice(0, 4));
+    } else {
+      // Filtra e prendi max 4
+      const filtered = all.filter((u) => u.toLowerCase().includes(input)).slice(0, 4);
+      this.filteredSuggestions.set(filtered);
+    }
+  };
+
+  /**
+   * Handle selection from autocomplete
+   */
+  onUsernameSelected = async (username: string) => {
+    this.loginDetailsForm.controls.username.setValue(username);
+    this.showAutocompleteSuggestions.set(false);
+
+    // Save selected username (encrypted) for future use
+    if (this.currentUserId && this.recentUsernamesService) {
+      await this.recentUsernamesService.addUsername(this.currentUserId, username);
+    }
+  };
+
+  onUsernameBlur = () => {
+    // Delay to allow click event on suggestions to fire first
+    setTimeout(() => {
+      this.showAutocompleteSuggestions.set(false);
+    }, 200);
   };
 }

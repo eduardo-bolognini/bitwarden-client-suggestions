@@ -9,6 +9,7 @@ import {
   EventEmitter,
   forwardRef,
   inject,
+  Injector,
   Input,
   OnChanges,
   OnInit,
@@ -341,6 +342,7 @@ export class CipherFormComponent implements AfterViewInit, OnInit, OnChanges, Ci
     private cipherFormCacheService: CipherFormCacheService,
     private cipherArchiveService: CipherArchiveService,
     private accountService: AccountService,
+    private injector: Injector,
   ) {}
 
   /**
@@ -400,6 +402,17 @@ export class CipherFormComponent implements AfterViewInit, OnInit, OnChanges, Ci
       this.updatedCipherView,
       this.config,
     );
+
+    // Save username to recent usernames after successful save
+    if (savedCipher.type === CipherType.Login && savedCipher.login?.username) {
+      const activeAccount = await firstValueFrom(this.accountService.activeAccount$);
+      if (activeAccount?.id) {
+        // Import the service dynamically to avoid circular dependencies
+        const { RecentUsernamesService } = await import("../../services/recent-usernames.service");
+        const recentUsernamesService = this.injector.get(RecentUsernamesService);
+        await recentUsernamesService.addUsername(activeAccount.id, savedCipher.login.username);
+      }
+    }
 
     // Clear the cache after successful save
     this.cipherFormCacheService.clearCache();
