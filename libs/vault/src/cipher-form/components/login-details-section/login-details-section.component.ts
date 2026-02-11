@@ -1,7 +1,16 @@
 // FIXME: Update this file to be type safe and remove this and next line
 // @ts-strict-ignore
 import { DatePipe, NgIf } from "@angular/common";
-import { Component, DestroyRef, inject, OnInit, Optional, signal } from "@angular/core";
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  inject,
+  OnInit,
+  Optional,
+  signal,
+  viewChild,
+} from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormBuilder, ReactiveFormsModule } from "@angular/forms";
 import { firstValueFrom, map } from "rxjs";
@@ -34,7 +43,6 @@ import { TotpCaptureService } from "../../abstractions/totp-capture.service";
 import { CipherFormContainer } from "../../cipher-form-container";
 import { AutofillOptionsComponent } from "../autofill-options/autofill-options.component";
 
-
 // FIXME(https://bitwarden.atlassian.net/browse/CL-764): Migrate to OnPush
 // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection
 @Component({
@@ -65,10 +73,11 @@ export class LoginDetailsSectionComponent implements OnInit {
     totp: [""],
   });
 
+  readonly usernameInput = viewChild<ElementRef<HTMLInputElement>>("usernameInput");
+
   // State for username autocomplete functionality
   readonly showAutocompleteSuggestions = signal(false);
   readonly filteredSuggestions = signal<string[]>([]);
-  readonly isUsernameReadonly = signal(true); // added to block chrome autocomplete on username field, which would interfere with our custom autocomplete UI
   usernameFieldId = Math.random().toString(36).substring(2); // random ID to prevent browser autocomplete
   private currentUserId: UserId | null = null;
 
@@ -322,8 +331,6 @@ export class LoginDetailsSectionComponent implements OnInit {
    * Show autocomplete on focus
    */
   onUsernameFocus = async () => {
-    this.isUsernameReadonly.set(false);
-
     if (!this.currentUserId || !this.recentUsernamesService) {
       return;
     }
@@ -352,6 +359,9 @@ export class LoginDetailsSectionComponent implements OnInit {
       const filtered = all.filter((u) => u.toLowerCase().includes(input)).slice(0, 4);
       this.filteredSuggestions.set(filtered);
     }
+
+    // Mostra i suggerimenti durante l'input
+    this.showAutocompleteSuggestions.set(true);
   };
 
   /**
@@ -365,12 +375,16 @@ export class LoginDetailsSectionComponent implements OnInit {
     if (this.currentUserId && this.recentUsernamesService) {
       await this.recentUsernamesService.addUsername(this.currentUserId, username);
     }
+
+    // Blur the input to close autocomplete completely
+    const inputEl = this.usernameInput();
+    if (inputEl) {
+      inputEl.nativeElement.blur();
+    }
   };
 
   onUsernameBlur = () => {
-    // Delay to allow click event on suggestions to fire first
-    setTimeout(() => {
-      this.showAutocompleteSuggestions.set(false);
-    }, 200);
+    // Hide autocomplete immediately on blur
+    this.showAutocompleteSuggestions.set(false);
   };
 }

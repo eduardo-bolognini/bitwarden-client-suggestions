@@ -10,13 +10,13 @@
       <bit-form-field>
         <bit-label>{{ "username" | i18n }}</bit-label>
         <input
+          #usernameInput
           bitInput
           formControlName="username"
           type="search"
           autocomplete="one-time-code"
           [attr.name]="'username-' + usernameFieldId"
           role="presentation"
-          [readonly]="isUsernameReadonly()"
           (focus)="onUsernameFocus()"
           (input)="onUsernameInput($event)"
           (blur)="onUsernameBlur()"
