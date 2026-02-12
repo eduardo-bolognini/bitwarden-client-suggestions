@@ -382,6 +382,7 @@ export class LoginDetailsSectionComponent implements OnInit {
   };
 
   onUsernameBlur = () => {
+    void this.persistUsernameBestEffort();
     // Hide autocomplete immediately on blur
     this.showAutocompleteSuggestions.set(false);
     this.activeSuggestionIndex.set(-1);
@@ -450,5 +451,20 @@ export class LoginDetailsSectionComponent implements OnInit {
 
     const filtered = all.filter((u) => u.toLowerCase().includes(query)).slice(0, 4);
     this.setSuggestions(filtered);
+  }
+
+  private async persistUsernameBestEffort() {
+    try {
+      if (!this.currentUserId || !this.recentUsernamesService) {
+        return;
+      }
+      const value = this.loginDetailsForm.controls.username.value?.trim();
+      if (!value) {
+        return;
+      }
+      await this.recentUsernamesService.addUsername(this.currentUserId, value);
+    } catch {
+      // ignore persistence errors
+    }
   }
 }
