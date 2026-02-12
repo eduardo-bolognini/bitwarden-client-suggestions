@@ -9,7 +9,6 @@ import {
   EventEmitter,
   forwardRef,
   inject,
-  Injector,
   Input,
   OnChanges,
   OnInit,
@@ -342,7 +341,6 @@ export class CipherFormComponent implements AfterViewInit, OnInit, OnChanges, Ci
     private cipherFormCacheService: CipherFormCacheService,
     private cipherArchiveService: CipherArchiveService,
     private accountService: AccountService,
-    private injector: Injector,
   ) {}
 
   /**
