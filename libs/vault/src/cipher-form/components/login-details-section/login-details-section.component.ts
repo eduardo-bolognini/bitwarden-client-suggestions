@@ -424,7 +424,7 @@ export class LoginDetailsSectionComponent implements OnInit {
   private setSuggestions(list: string[]) {
     this.filteredSuggestions.set(list);
     this.showAutocompleteSuggestions.set(list.length > 0);
-    this.activeSuggestionIndex.set(list.length > 0 ? -1 : -1);
+    this.activeSuggestionIndex.set(-1);
   }
 
   private async loadAndFilterUsernames(query: string) {
