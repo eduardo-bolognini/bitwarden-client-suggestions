@@ -150,7 +150,7 @@ export class LoginDetailsSectionComponent implements OnInit {
     private eventCollectionService: EventCollectionService,
     private accountService: AccountService,
     @Optional() private totpCaptureService?: TotpCaptureService,
-    private recentUsernamesService?: RecentUsernamesService, // to load recent usernames for autocomplete
+    @Optional() private recentUsernamesService?: RecentUsernamesService, // to load recent usernames for autocomplete
   ) {
     this.cipherFormContainer.registerChildForm("loginDetails", this.loginDetailsForm);
 
