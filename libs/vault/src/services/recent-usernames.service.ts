@@ -10,8 +10,8 @@ import { RECENT_USERNAMES_KEY } from "./recent-usernames.state";
 
 /**
  * Service to manage recent usernames for autocomplete in login forms.
- * Stores up to 20 recent usernames encrypted on disk using AES-256-CBC.
- * Data is automatically encrypted/decrypted by StateProvider.
+ * Stores up to 20 recent usernames securely on disk.
+ * Data is automatically encrypted/decrypted by the StateProvider layer.
  * Persists across sessions and loads automatically at login.
  */
 @Injectable({
