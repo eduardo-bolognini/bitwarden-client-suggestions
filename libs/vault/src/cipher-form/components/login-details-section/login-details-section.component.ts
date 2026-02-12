@@ -151,6 +151,8 @@ export class LoginDetailsSectionComponent implements OnInit {
     private eventCollectionService: EventCollectionService,
     private accountService: AccountService,
     @Optional() private totpCaptureService?: TotpCaptureService,
+    // NOTE: RecentUsernamesService is intentionally not exported from libs/vault/src/index.ts.
+    // It is used here as an internal, optional dependency to provide username autocomplete.
     @Optional() private recentUsernamesService?: RecentUsernamesService, // to load recent usernames for autocomplete
   ) {
     this.cipherFormContainer.registerChildForm("loginDetails", this.loginDetailsForm);
