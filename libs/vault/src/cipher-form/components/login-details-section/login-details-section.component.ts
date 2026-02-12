@@ -352,15 +352,15 @@ export class LoginDetailsSectionComponent implements OnInit {
     const all = await this.recentUsernamesService.getRecent(this.currentUserId, 20);
 
     if (!input) {
-      // Se vuoto, mostra top 4
+      // If input is empty, show the top 4
       this.filteredSuggestions.set(all.slice(0, 4));
     } else {
-      // Filtra e prendi max 4
+      // Filter and take up to 4 results
       const filtered = all.filter((u) => u.toLowerCase().includes(input)).slice(0, 4);
       this.filteredSuggestions.set(filtered);
     }
 
-    // Mostra i suggerimenti durante l'input
+    // Show suggestions while the user is typing
     this.showAutocompleteSuggestions.set(true);
   };
 
