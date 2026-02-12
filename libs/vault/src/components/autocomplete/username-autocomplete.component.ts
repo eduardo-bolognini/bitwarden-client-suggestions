@@ -60,6 +60,7 @@ export class UsernameAutocompleteComponent {
   optionId = (index: number) => `${this.idPrefix()}-option-${index}`;
 
   selectItem(event: MouseEvent | KeyboardEvent, username: string) {
+    event.preventDefault();
     this.selected.emit(username);
     this.hoverIndex.set(-1);
   }
