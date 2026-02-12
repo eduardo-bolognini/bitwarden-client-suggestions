@@ -119,28 +119,38 @@ export class RecentUsernamesService {
   }
 
   /**
-   * Collects email addresses from identity ciphers to seed the recent usernames list.
+   * Collects usernames and email addresses from identity ciphers to seed the recent usernames list.
    * Runs only when the list is empty to avoid unnecessary processing.
    */
   private async seedFromIdentityCiphers(userId: UserId): Promise<string[]> {
     try {
       const ciphers = await this.cipherService.getAllDecrypted(userId);
-      const identityEmails = ciphers
-        .map((cipher) => cipher.identity?.email?.trim())
-        .filter((email): email is string => Boolean(email));
+      const identityUsernamesAndEmails: string[] = [];
 
-      if (!identityEmails.length) {
+      for (const cipher of ciphers) {
+        const email = cipher.identity?.email?.trim();
+        if (email) {
+          identityUsernamesAndEmails.push(email);
+        }
+
+        const username = cipher.identity?.username?.trim();
+        if (username) {
+          identityUsernamesAndEmails.push(username);
+        }
+      }
+
+      if (!identityUsernamesAndEmails.length) {
         return [];
       }
 
       // Build the usernames list in memory to avoid multiple disk writes.
       const usernames: string[] = [];
-      for (const email of identityEmails) {
-        const existing = usernames.indexOf(email);
+      for (const value of identityUsernamesAndEmails) {
+        const existing = usernames.indexOf(value);
         if (existing !== -1) {
           usernames.splice(existing, 1);
         }
-        usernames.unshift(email);
+        usernames.unshift(value);
         if (usernames.length > this.MAX_USERNAMES) {
           usernames.pop();
         }
