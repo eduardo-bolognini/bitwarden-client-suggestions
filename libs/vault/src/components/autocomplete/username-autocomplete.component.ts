@@ -19,6 +19,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
         <!-- Header -->
         <div
           class="tw-px-3 tw-py-1 tw-text-xs tw-font-semibold tw-text-muted tw-uppercase tw-tracking-wide"
+          role="presentation"
         >
           {{ headerText() }}
         </div>
