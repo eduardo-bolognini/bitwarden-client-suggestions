@@ -133,11 +133,23 @@ export class RecentUsernamesService {
         return [];
       }
 
+      // Build the usernames list in memory to avoid multiple disk writes.
+      const usernames: string[] = [];
       for (const email of identityEmails) {
-        await this.addUsername(userId, email);
+        const existing = usernames.indexOf(email);
+        if (existing !== -1) {
+          usernames.splice(existing, 1);
+        }
+        usernames.unshift(email);
+        if (usernames.length > this.MAX_USERNAMES) {
+          usernames.pop();
+        }
       }
 
-      return identityEmails;
+      const state = this.stateProvider.getUser(userId, RECENT_USERNAMES_KEY);
+      await state.update(() => usernames);
+
+      return usernames;
     } catch {
       return [];
     }

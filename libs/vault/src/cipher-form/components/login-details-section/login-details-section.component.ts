@@ -88,6 +88,7 @@ export class LoginDetailsSectionComponent implements OnInit {
     return idx >= 0 ? `${this.autocompleteIdPrefix}-option-${idx}` : null;
   });
   private currentUserId: UserId | null = null;
+  private usernameRequestId = 0;
 
   /**
    * Flag indicating whether a new password has been generated for the current form.
@@ -343,10 +344,7 @@ export class LoginDetailsSectionComponent implements OnInit {
       return;
     }
 
-    const recent = await this.recentUsernamesService.getRecent(this.currentUserId, 4);
-    this.filteredSuggestions.set(recent);
-    this.showAutocompleteSuggestions.set(true);
-    this.activeSuggestionIndex.set(-1);
+    await this.loadAndFilterUsernames("");
   };
 
   /**
@@ -358,20 +356,7 @@ export class LoginDetailsSectionComponent implements OnInit {
     }
 
     const input = (event.target as HTMLInputElement).value.toLowerCase();
-    const all = await this.recentUsernamesService.getRecent(this.currentUserId, 20);
-
-    if (!input) {
-      // If input is empty, show the top 4
-      this.filteredSuggestions.set(all.slice(0, 4));
-    } else {
-      // Filter and take up to 4 results
-      const filtered = all.filter((u) => u.toLowerCase().includes(input)).slice(0, 4);
-      this.filteredSuggestions.set(filtered);
-    }
-
-    // Show suggestions while the user is typing
-    this.showAutocompleteSuggestions.set(true);
-    this.activeSuggestionIndex.set(-1);
+    await this.loadAndFilterUsernames(input);
   };
 
   /**
@@ -398,6 +383,7 @@ export class LoginDetailsSectionComponent implements OnInit {
     // Hide autocomplete immediately on blur
     this.showAutocompleteSuggestions.set(false);
     this.activeSuggestionIndex.set(-1);
+    this.usernameRequestId++;
   };
 
   onUsernameKeydown = async (event: KeyboardEvent) => {
@@ -434,4 +420,33 @@ export class LoginDetailsSectionComponent implements OnInit {
         break;
     }
   };
+
+  private setSuggestions(list: string[]) {
+    this.filteredSuggestions.set(list);
+    this.showAutocompleteSuggestions.set(list.length > 0);
+    this.activeSuggestionIndex.set(list.length > 0 ? -1 : -1);
+  }
+
+  private async loadAndFilterUsernames(query: string) {
+    // sequence token to discard stale responses
+    const requestId = ++this.usernameRequestId;
+
+    if (!this.currentUserId || !this.recentUsernamesService) {
+      return;
+    }
+
+    const all = await this.recentUsernamesService.getRecent(this.currentUserId, 20);
+
+    if (requestId !== this.usernameRequestId) {
+      return; // stale response
+    }
+
+    if (!query) {
+      this.setSuggestions(all.slice(0, 4));
+      return;
+    }
+
+    const filtered = all.filter((u) => u.toLowerCase().includes(query)).slice(0, 4);
+    this.setSuggestions(filtered);
+  }
 }
