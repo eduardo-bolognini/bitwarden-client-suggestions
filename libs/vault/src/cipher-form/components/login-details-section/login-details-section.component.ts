@@ -10,6 +10,7 @@ import {
   Optional,
   signal,
   viewChild,
+  computed,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormBuilder, ReactiveFormsModule } from "@angular/forms";
@@ -78,7 +79,14 @@ export class LoginDetailsSectionComponent implements OnInit {
   // State for username autocomplete functionality
   readonly showAutocompleteSuggestions = signal(false);
   readonly filteredSuggestions = signal<string[]>([]);
-  usernameFieldId = Math.random().toString(36).substring(2); // random ID to prevent browser autocomplete
+  readonly activeSuggestionIndex = signal(-1);
+  readonly usernameFieldId = Math.random().toString(36).substring(2); // random ID to prevent browser autocomplete
+  readonly autocompleteIdPrefix = `username-${this.usernameFieldId}`;
+  readonly autocompleteListId = computed(() => `${this.autocompleteIdPrefix}-listbox`);
+  readonly activeDescendantId = computed(() => {
+    const idx = this.activeSuggestionIndex();
+    return idx >= 0 ? `${this.autocompleteIdPrefix}-option-${idx}` : null;
+  });
   private currentUserId: UserId | null = null;
 
   /**
@@ -338,6 +346,7 @@ export class LoginDetailsSectionComponent implements OnInit {
     const recent = await this.recentUsernamesService.getRecent(this.currentUserId, 4);
     this.filteredSuggestions.set(recent);
     this.showAutocompleteSuggestions.set(true);
+    this.activeSuggestionIndex.set(-1);
   };
 
   /**
@@ -360,8 +369,9 @@ export class LoginDetailsSectionComponent implements OnInit {
       this.filteredSuggestions.set(filtered);
     }
 
-    // Mostra i suggerimenti durante l'input
+    // Show suggestions while typing
     this.showAutocompleteSuggestions.set(true);
+    this.activeSuggestionIndex.set(-1);
   };
 
   /**
@@ -370,6 +380,7 @@ export class LoginDetailsSectionComponent implements OnInit {
   onUsernameSelected = async (username: string) => {
     this.loginDetailsForm.controls.username.setValue(username);
     this.showAutocompleteSuggestions.set(false);
+    this.activeSuggestionIndex.set(-1);
 
     // Save selected username (encrypted) for future use
     if (this.currentUserId && this.recentUsernamesService) {
@@ -386,5 +397,41 @@ export class LoginDetailsSectionComponent implements OnInit {
   onUsernameBlur = () => {
     // Hide autocomplete immediately on blur
     this.showAutocompleteSuggestions.set(false);
+    this.activeSuggestionIndex.set(-1);
+  };
+
+  onUsernameKeydown = async (event: KeyboardEvent) => {
+    const suggestions = this.filteredSuggestions();
+
+    if (!this.showAutocompleteSuggestions() || suggestions.length === 0) {
+      return;
+    }
+
+    const current = this.activeSuggestionIndex();
+
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        this.activeSuggestionIndex.set((current + 1) % suggestions.length);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        this.activeSuggestionIndex.set(current <= 0 ? suggestions.length - 1 : current - 1);
+        break;
+      case "Enter":
+      case "NumpadEnter": {
+        event.preventDefault();
+        const indexToUse = current >= 0 ? current : 0;
+        await this.onUsernameSelected(suggestions[indexToUse]);
+        break;
+      }
+      case "Escape":
+        event.preventDefault();
+        this.showAutocompleteSuggestions.set(false);
+        this.activeSuggestionIndex.set(-1);
+        break;
+      default:
+        break;
+    }
   };
 }

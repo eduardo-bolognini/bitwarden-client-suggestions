@@ -12,15 +12,21 @@
         <input
           #usernameInput
           bitInput
+          role="combobox"
+          aria-autocomplete="list"
+          [attr.aria-expanded]="showAutocompleteSuggestions()"
+          [attr.aria-controls]="autocompleteListId()"
+          [attr.aria-activedescendant]="activeDescendantId()"
+          aria-haspopup="listbox"
           formControlName="username"
           type="search"
-          autocomplete="one-time-code"
+          autocomplete="username"
           [attr.name]="'username-' + usernameFieldId"
-          role="presentation"
           (focus)="onUsernameFocus()"
           (input)="onUsernameInput($event)"
+          (keydown)="onUsernameKeydown($event)"
           (blur)="onUsernameBlur()"
-        />
+        /><!-- role="presentation" -->
         <button
           type="button"
           bitIconButton="bwi-generate"
@@ -35,6 +41,8 @@
       <vault-username-autocomplete
         [suggestions]="filteredSuggestions()"
         [visible]="showAutocompleteSuggestions()"
+        [activeIndex]="activeSuggestionIndex()"
+        [idPrefix]="autocompleteIdPrefix"
         [headerText]="'recentUsernames' | i18n"
         (selected)="onUsernameSelected($event)"
       ></vault-username-autocomplete>
