@@ -3,7 +3,7 @@ import { VAULT_SETTINGS_DISK, UserKeyDefinition } from "@bitwarden/common/platfo
 /**
  * Key definition for encrypted recent usernames
  * Uses UserKeyDefinition.array() which automatically encrypts data with user's key
- * Stored on disk with AES-256-CBC encryption
+ * Stored on disk encrypted at rest via the user key/state provider
  */
 export const RECENT_USERNAMES_KEY = UserKeyDefinition.array<string>(
   VAULT_SETTINGS_DISK,
