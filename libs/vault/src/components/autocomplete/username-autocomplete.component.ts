@@ -10,11 +10,11 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
     <div
       *ngIf="visible() && suggestions().length > 0"
       class="tw-absolute tw-inset-x-0 tw-top-full tw-z-50 tw-mt-0.5"
-      [attr.id]="listId()"
     >
       <div
         class="tw-flex tw-flex-col tw-rounded-lg tw-border tw-border-solid tw-border-secondary-300 tw-bg-background tw-shadow-lg tw-py-1 tw-max-h-48 tw-overflow-y-auto"
         role="listbox"
+        [attr.id]="listId()"
       >
         <!-- Header -->
         <div
