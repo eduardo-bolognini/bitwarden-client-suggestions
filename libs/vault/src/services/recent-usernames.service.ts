@@ -1,9 +1,10 @@
 import { Injectable } from "@angular/core";
-import { map, Observable, of, catchError, firstValueFrom, switchMap } from "rxjs";
+import { map, Observable, of, catchError, firstValueFrom, switchMap, from } from "rxjs";
 
 import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
 import { StateProvider } from "@bitwarden/common/platform/state";
 import { UserId } from "@bitwarden/common/types/guid";
+import { CipherService } from "@bitwarden/common/vault/abstractions/cipher.service";
 
 import { RECENT_USERNAMES_KEY } from "./recent-usernames.state";
 
@@ -22,6 +23,7 @@ export class RecentUsernamesService {
   constructor(
     private accountService: AccountService,
     private stateProvider: StateProvider,
+    private cipherService: CipherService,
   ) {}
 
   /**
@@ -34,7 +36,7 @@ export class RecentUsernamesService {
         if (!account?.id) {
           return of([]);
         }
-        return this.stateProvider.getUser(account.id, RECENT_USERNAMES_KEY).state$;
+        return from(this.getUsernamesOrSeedFromIdentity(account.id));
       }),
       map((usernames) => usernames ?? []),
       catchError(() => {
@@ -50,8 +52,7 @@ export class RecentUsernamesService {
    */
   async getRecent(userId: UserId, limit: number = 3): Promise<string[]> {
     try {
-      const state = this.stateProvider.getUser(userId, RECENT_USERNAMES_KEY);
-      const usernames = await firstValueFrom(state.state$);
+      const usernames = await this.getUsernamesOrSeedFromIdentity(userId);
       return (usernames ?? []).slice(0, limit);
     } catch {
       return [];
@@ -84,6 +85,61 @@ export class RecentUsernamesService {
       });
     } catch {
       // Silently fail
+    }
+  }
+
+  /**
+   * Seed recent usernames with the account email on first login when the list is empty.
+   * Returns the current list after seeding (or empty if nothing to seed).
+   */
+  private async getUsernamesOrSeedFromIdentity(userId: UserId): Promise<string[]> {
+    const state = this.stateProvider.getUser(userId, RECENT_USERNAMES_KEY);
+    const usernames = await firstValueFrom(state.state$);
+
+    if (usernames?.length) {
+      return usernames;
+    }
+
+    const seededFromIdentity = await this.seedFromIdentityCiphers(userId);
+
+    if (seededFromIdentity.length) {
+      const updated = await firstValueFrom(state.state$);
+      return updated ?? seededFromIdentity;
+    }
+
+    const accounts = await firstValueFrom(this.accountService.accounts$);
+    const identityEmail = accounts?.[userId]?.email?.trim();
+
+    if (!identityEmail) {
+      return [];
+    }
+
+    await this.addUsername(userId, identityEmail);
+    return [identityEmail];
+  }
+
+  /**
+   * Collects email addresses from identity ciphers to seed the recent usernames list.
+   * Runs only when the list is empty to avoid unnecessary processing.
+   */
+  private async seedFromIdentityCiphers(userId: UserId): Promise<string[]> {
+    try {
+      const ciphers = await this.cipherService.getAllDecrypted(userId);
+      const identityEmails = ciphers
+        .map((cipher) => cipher.identity?.email?.trim())
+        .filter((email): email is string => Boolean(email));
+
+      if (!identityEmails.length) {
+        return [];
+      }
+
+      for (const email of identityEmails) {
+        await this.addUsername(userId, email);
+      }
+
+      return identityEmails;
+    } catch {
+      return [];
     }
   }
 
